@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 type UiState = "idle" | "recording" | "processing" | "speaking" | "error";
-type ActionResult = { type: string; result: { ok: boolean; id?: string; error?: string } };
+type ActionResult = { type: string; result: { ok: boolean; id?: string; url?: string; error?: string; emails?: Array<{ from: string; subject: string; snippet: string; date: string }> } };
 type Turn = {
   id: string;
   role: "user" | "assistant";
@@ -153,18 +153,42 @@ function App() {
             <div style={{ fontSize: 11, color: "#9aa0a6", marginBottom: 4 }}>{t.role === "user" ? "You" : "Assistant"}</div>
             <div style={{ fontSize: 15, lineHeight: 1.4 }}>{t.text}</div>
             {t.actions && t.actions.length > 0 && (
-              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {t.actions.map((a, i) => (
-                  <span key={i} style={{
-                    fontSize: 12,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    background: a.result.ok ? "#1f3a2a" : "#3a1a1f",
-                    color: a.result.ok ? "#7be0a8" : "#ffb4b4",
-                  }}>
-                    {a.type === "gmail_draft" ? "✉️ Draft" : "📅 Event"} {a.result.ok ? "✓" : "✗"}
-                  </span>
-                ))}
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                {t.actions.map((a, i) => {
+                  const label = a.type === "gmail_draft" ? "✉️ Draft"
+                    : a.type === "gmail_read" ? `📧 Read ${a.result.emails?.length ?? 0}`
+                    : a.type === "calendar_event" ? "📅 Event"
+                    : a.type === "google_docs_create" ? "📄 Doc"
+                    : a.type === "google_sheets_create" ? "📊 Sheet"
+                    : a.type;
+                  return (
+                    <div key={i} style={{
+                      fontSize: 12,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      background: a.result.ok ? "#1f3a2a" : "#3a1a1f",
+                      color: a.result.ok ? "#7be0a8" : "#ffb4b4",
+                    }}>
+                      <span style={{ fontWeight: 600 }}>{label} {a.result.ok ? "✓" : "✗"}</span>
+                      {a.result.url && (
+                        <a href={a.result.url} target="_blank" rel="noreferrer" style={{ marginLeft: 8, color: "inherit", textDecoration: "underline", opacity: 0.85 }}>open</a>
+                      )}
+                      {a.type === "gmail_read" && a.result.emails && a.result.emails.length > 0 && (
+                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                          {a.result.emails.map((e, j) => (
+                            <div key={j} style={{ fontSize: 12, opacity: 0.9 }}>
+                              <div style={{ fontWeight: 500 }}>{e.subject || "(no subject)"}</div>
+                              <div style={{ opacity: 0.75 }}>{e.from}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {!a.result.ok && a.result.error && (
+                        <div style={{ fontSize: 11, marginTop: 4, opacity: 0.85 }}>{a.result.error}</div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
