@@ -95,6 +95,33 @@ export async function runAction(action: Action): Promise<ActionResult> {
       return { ok: true, id: data.id, url: data.htmlLink };
     }
 
+    if (action.type === "availability_event") {
+      // Note: true Google Calendar OOO events (eventType: outOfOffice) are only
+      // available on Workspace/enterprise calendars. For personal Gmail
+      // accounts, we create a regular busy event with "OOO:" prefixed to the
+      // title and opaque transparency so it blocks the calendar.
+      const res = await fetch(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Sauna-Connection-Id": CALENDAR_CONN,
+          },
+          body: JSON.stringify({
+            summary: action.title.startsWith("OOO") ? action.title : `OOO: ${action.title}`,
+            description: "Created by voice assistant.",
+            start: { dateTime: action.start },
+            end: { dateTime: action.end },
+            transparency: "opaque",
+          }),
+        }
+      );
+      if (!res.ok) return { ok: false, error: `availability ${res.status}: ${await res.text()}` };
+      const data = (await res.json()) as { id: string; htmlLink: string };
+      return { ok: true, id: data.id, url: data.htmlLink };
+    }
+
     if (action.type === "google_docs_create") {
       const createRes = await fetch("https://docs.googleapis.com/v1/documents", {
         method: "POST",
